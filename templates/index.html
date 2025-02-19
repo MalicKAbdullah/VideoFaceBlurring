@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Realtime Face Blurring</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            background-color: #f8f9fa;
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+        h1, h2 {
+            text-align: center;
+            color: #1a1a1a;
+        }
+        h1 {
+            margin-bottom: 0.5rem;
+        }
+        .description {
+            text-align: center;
+            color: #555;
+            margin-bottom: 2rem;
+        }
+        .card {
+            background: #fff;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .btn {
+            display: inline-block;
+            background: #333;
+            color: #fff;
+            padding: 0.8rem 1.5rem;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+            text-decoration: none;
+            transition: background 0.3s ease;
+            font-weight: 600;
+        }
+        .btn:hover {
+            background: #555;
+        }
+        #uploadProgress, #cameraContainer {
+            margin-top: 1.5rem;
+        }
+        #progressBar {
+            width: 100%;
+            background-color: #e9ecef;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        #progressBarFill {
+            width: 0%;
+            height: 30px;
+            background-color: #333;
+            text-align: center;
+            line-height: 30px;
+            color: white;
+            transition: width 0.5s ease;
+        }
+        #cameraFeed {
+            width: 100%;
+            max-width: 640px;
+            height: auto;
+            display: block;
+            margin: 1rem auto;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #333;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        input[type="file"] {
+            margin-bottom: 1rem;
+        }
+        #downloadLink {
+            text-align: center;
+            margin-top: 1rem;
+        }
+        #cameraContainer {
+            text-align: center;
+        }
+        #cameraContainer button {
+            margin: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Realtime Face Blurring</h1>
+        <p class="description">Protect your privacy with our advanced face blurring technology. Upload a video or use your camera in real-time.</p>
+        <div class="card">
+            <h2>Upload Video</h2>
+            <form id="uploadForm" enctype="multipart/form-data">
+                <input type="file" name="file" accept=".mp4,.avi,.mov">
+                <button type="submit" class="btn">Upload and Process</button>
+            </form>
+            <div id="uploadProgress" style="display:none;">
+                <p id="progressText"></p>
+                <div id="progressBar">
+                    <div id="progressBarFill">0%</div>
+                </div>
+            </div>
+            <div id="downloadLink" style="display:none;">
+                <a href="#" id="downloadButton" class="btn">Download Processed Video</a>
+            </div>
+        </div>
+        <div class="card">
+            <h2>Live Camera</h2>
+            <div id="cameraContainer">
+                <img id="cameraFeed" src="" alt="Live Camera Feed" style="display:none;">
+                <button id="startCamera" class="btn">Start Camera</button>
+                <button id="stopCamera" class="btn" style="display:none;">Stop Camera</button>
+                <button id="saveCameraVideo" class="btn" style="display:none;">Save Video</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // JavaScript remains the same as in the previous version
+        const uploadForm = document.getElementById('uploadForm');
+        const uploadProgress = document.getElementById('uploadProgress');
+        const progressBarFill = document.getElementById('progressBarFill');
+        const progressText = document.getElementById('progressText');
+        const downloadLink = document.getElementById('downloadLink');
+        const downloadButton = document.getElementById('downloadButton');
+        const cameraFeed = document.getElementById('cameraFeed');
+        const startCamera = document.getElementById('startCamera');
+        const stopCamera = document.getElementById('stopCamera');
+        const saveCameraVideo = document.getElementById('saveCameraVideo');
+
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(uploadForm);
+            uploadProgress.style.display = 'block';
+            progressBarFill.style.width = '0%';
+            progressBarFill.textContent = '0%';
+            progressText.textContent = 'Processing your video, it may take time, Be Patient...';
+            downloadLink.style.display = 'none';
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                if (response.ok) {
+                    updateProgress(result.filename);
+                } else {
+                    progressText.textContent = `Error: ${result.error}`;
+                }
+            } catch (error) {
+                progressText.textContent = 'An error occurred during upload.';
+            }
+        });
+
+        async function updateProgress(filename) {
+            while (true) {
+                const response = await fetch(`/progress/${filename}`);
+                const result = await response.json();
+                progressBarFill.style.width = `${result.progress}%`;
+                progressBarFill.textContent = `${result.progress}%`;
+                if (result.progress === 100) {
+                    progressText.textContent = 'Processing complete!';
+                    downloadButton.href = `/download/${filename}`;
+                    downloadLink.style.display = 'block';
+                    break;
+                }
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+        }
+
+        startCamera.addEventListener('click', () => {
+            cameraFeed.src = "/camera";
+            cameraFeed.style.display = 'block';
+            startCamera.style.display = 'none';
+            stopCamera.style.display = 'inline-block';
+        });
+
+        stopCamera.addEventListener('click', () => {
+            cameraFeed.src = "";
+            cameraFeed.style.display = 'none';
+            stopCamera.style.display = 'none';
+            startCamera.style.display = 'inline-block';
+            saveCameraVideo.style.display = 'inline-block'; 
+        });
+
+        saveCameraVideo.addEventListener('click', () => {
+            window.location.href = '/save_camera_video';
+        });
+    </script>
+</body>
+</html>
