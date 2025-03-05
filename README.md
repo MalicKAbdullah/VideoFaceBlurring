@@ -56,7 +56,8 @@ Make sure to have the following libraries installed:
 - OpenCV (cv2)
 - NumPy
 - PyTorch (for YOLO)
+- Ultralytics
 
 You can install these libraries using pip:
 ```bash
-pip install flask opencv-python numpy torch torchvision
+pip install flask opencv-python numpy torch torchvision ultralytics
